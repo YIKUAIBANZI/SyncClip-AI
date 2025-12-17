@@ -1,0 +1,5 @@
+{
+  "name": "SyncClip AI",
+  "description": "A smart, cross-platform clipboard manager that uses Gemini to analyze, tag, and organize your clips across devices.",
+  "requestFramePermissions": []
+}
