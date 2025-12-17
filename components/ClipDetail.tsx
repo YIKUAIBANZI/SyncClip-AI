@@ -18,8 +18,21 @@ const ClipDetail: React.FC<ClipDetailProps> = ({ clip }) => {
     );
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(clip.content);
+  const handleCopy = async () => {
+    if (clip.type === ClipType.IMAGE) {
+        try {
+            const fetchRes = await fetch(clip.content);
+            const blob = await fetchRes.blob();
+            await navigator.clipboard.write([
+                new ClipboardItem({ [blob.type]: blob })
+            ]);
+            // Optional: alert('Image copied');
+        } catch (err) {
+            console.error("Failed to copy image", err);
+        }
+    } else {
+        navigator.clipboard.writeText(clip.content);
+    }
   };
 
   return (
@@ -29,6 +42,7 @@ const ClipDetail: React.FC<ClipDetailProps> = ({ clip }) => {
           <div className={`p-3 rounded-lg ${
              clip.type === ClipType.CODE ? 'bg-pink-500/20 text-pink-400' : 
              clip.type === ClipType.URL ? 'bg-blue-500/20 text-blue-400' : 
+             clip.type === ClipType.IMAGE ? 'bg-orange-500/20 text-orange-400' :
              'bg-slate-700 text-slate-300'
           }`}>
             <ClipTypeIcon type={clip.type} className="w-6 h-6" />
@@ -53,13 +67,15 @@ const ClipDetail: React.FC<ClipDetailProps> = ({ clip }) => {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <div className="bg-black/30 rounded-lg border border-slate-700 p-4">
+        <div className="bg-black/30 rounded-lg border border-slate-700 p-4 flex justify-center">
           {clip.type === ClipType.URL ? (
             <a href={clip.content} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline break-all">
               {clip.content}
             </a>
+          ) : clip.type === ClipType.IMAGE ? (
+             <img src={clip.content} alt="Full Clip" className="max-w-full max-h-[60vh] object-contain rounded" />
           ) : (
-            <pre className="whitespace-pre-wrap font-mono text-sm text-slate-300 break-words">
+            <pre className="whitespace-pre-wrap font-mono text-sm text-slate-300 break-words w-full">
               {clip.content}
             </pre>
           )}

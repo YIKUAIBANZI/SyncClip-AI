@@ -3,7 +3,7 @@ export enum ClipType {
   URL = 'URL',
   CODE = 'CODE',
   EMAIL = 'EMAIL',
-  IMAGE = 'IMAGE' // Placeholder for future
+  IMAGE = 'IMAGE'
 }
 
 export enum DeviceType {
@@ -15,7 +15,7 @@ export enum DeviceType {
 
 export interface ClipItem {
   id: string;
-  content: string;
+  content: string; // Text content or Base64 Data URL for images
   type: ClipType;
   timestamp: number;
   deviceId: string;
@@ -23,6 +23,7 @@ export interface ClipItem {
   summary?: string; // AI Generated
   tags?: string[]; // AI Generated
   isFavorite: boolean;
+  expiresAt?: number; // For ephemeral messages (timestamp)
 }
 
 export interface AiAnalysisResult {

@@ -21,7 +21,11 @@ import {
   Wifi,
   X,
   QrCode,
-  Check
+  Check,
+  Camera,
+  Bomb,
+  Timer,
+  Image as ImageIcon
 } from 'lucide-react';
 import { ClipType, DeviceType } from '../types';
 
@@ -30,6 +34,7 @@ export const ClipTypeIcon = ({ type, className }: { type: ClipType, className?: 
     case ClipType.CODE: return <Code className={className} />;
     case ClipType.URL: return <Link className={className} />;
     case ClipType.EMAIL: return <Mail className={className} />;
+    case ClipType.IMAGE: return <ImageIcon className={className} />;
     default: return <FileText className={className} />;
   }
 };
@@ -44,4 +49,4 @@ export const DeviceIcon = ({ name, className }: { name: string, className?: stri
   return <Monitor className={className} />;
 };
 
-export { Copy, Trash2, Star, Clipboard, Share2, Zap, ZapOff, Plus, RefreshCw, SmartphoneNfc, Cast, Wifi, X, QrCode, Check, Link };
+export { Copy, Trash2, Star, Clipboard, Share2, Zap, ZapOff, Plus, RefreshCw, SmartphoneNfc, Cast, Wifi, X, QrCode, Check, Link, Camera, Bomb, Timer, ImageIcon };

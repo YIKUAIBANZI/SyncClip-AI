@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Copy, Wifi, X, Cast, QrCode, Check, Link } from './Icon';
+import React, { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from "html5-qrcode";
+import { Copy, Wifi, X, Cast, QrCode, Check, Link, Camera } from './Icon';
 
 interface ConnectionModalProps {
   isOpen: boolean;
@@ -12,8 +13,8 @@ interface ConnectionModalProps {
 const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose, myPeerId, onConnect, connectedPeers }) => {
   const [targetId, setTargetId] = useState('');
   const [copied, setCopied] = useState(false);
-
-  if (!isOpen) return null;
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   // Generate a shareable link that will auto-connect the other device
   const getShareLink = () => {
@@ -36,8 +37,72 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose, myPe
     if (targetId.trim()) {
       onConnect(targetId.trim());
       setTargetId('');
+      handleStopScan(); 
     }
   };
+
+  const startScanning = async () => {
+    setIsScanning(true);
+    // Allow UI to update first
+    setTimeout(() => {
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+        
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            (decodedText) => {
+                // Success callback
+                console.log("QR Code scanned:", decodedText);
+                try {
+                    // Check if it's a URL with 'connect' param
+                    const url = new URL(decodedText);
+                    const connectId = url.searchParams.get('connect');
+                    if (connectId) {
+                        onConnect(connectId);
+                        handleStopScan();
+                    } else {
+                        // Assume raw ID
+                        setTargetId(decodedText);
+                        onConnect(decodedText);
+                        handleStopScan();
+                    }
+                } catch (e) {
+                    // Not a URL, try as raw ID
+                    setTargetId(decodedText);
+                }
+            },
+            (errorMessage) => {
+                // parse error, ignore loop
+            }
+        ).catch(err => {
+            console.error("Error starting scanner", err);
+            setIsScanning(false);
+        });
+    }, 100);
+  };
+
+  const handleStopScan = () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().then(() => {
+            scannerRef.current?.clear();
+            setIsScanning(false);
+        }).catch(err => console.error(err));
+    } else {
+        setIsScanning(false);
+    }
+  };
+
+  // Cleanup on close
+  useEffect(() => {
+      if (!isOpen) {
+          handleStopScan();
+      }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -47,32 +112,49 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose, myPe
             <Cast className="w-5 h-5 text-indigo-400" />
             Connect Devices
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button onClick={() => { handleStopScan(); onClose(); }} className="text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-8">
           
-          {/* QR Code Section (Best for Mobile) */}
+          {/* QR Code Section */}
           <div className="flex flex-col items-center gap-4">
-            <div className="bg-white p-3 rounded-xl shadow-lg">
-              {myPeerId ? (
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getShareLink())}`}
-                  alt="Scan to Connect"
-                  className="w-40 h-40"
-                />
-              ) : (
-                <div className="w-40 h-40 bg-slate-200 animate-pulse rounded"></div>
-              )}
-            </div>
-            <div className="text-center">
-              <h3 className="text-sm font-medium text-white mb-1">Scan to Connect</h3>
-              <p className="text-xs text-slate-400 max-w-[250px]">
-                Scan this with your phone camera to instantly link this device.
-              </p>
-            </div>
+            {isScanning ? (
+                <div className="w-full">
+                    <div id="reader" className="w-full h-64 bg-black rounded-lg overflow-hidden"></div>
+                    <button 
+                        onClick={handleStopScan}
+                        className="mt-4 text-sm text-red-400 hover:text-red-300 w-full text-center"
+                    >
+                        Stop Camera
+                    </button>
+                </div>
+            ) : (
+                <>
+                    <div className="bg-white p-3 rounded-xl shadow-lg relative group">
+                    {myPeerId ? (
+                        <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getShareLink())}`}
+                        alt="Scan to Connect"
+                        className="w-40 h-40"
+                        />
+                    ) : (
+                        <div className="w-40 h-40 bg-slate-200 animate-pulse rounded"></div>
+                    )}
+                    </div>
+                    <div className="flex gap-2">
+                         <button 
+                            onClick={startScanning}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            <Camera className="w-4 h-4" />
+                            Scan Partner's QR
+                        </button>
+                    </div>
+                </>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -81,27 +163,9 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose, myPe
             <div className="h-px bg-slate-700 flex-1"></div>
           </div>
 
-          {/* My ID Section */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Your Device ID</label>
-                {myPeerId && (
-                    <button onClick={handleCopyLink} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                        {copied ? <Check className="w-3 h-3" /> : <Link className="w-3 h-3" />}
-                        {copied ? 'Copied Link' : 'Copy Link'}
-                    </button>
-                )}
-            </div>
-            <div className="flex gap-2">
-              <code className="flex-1 bg-black/30 p-3 rounded-lg border border-slate-700 text-indigo-300 font-mono text-sm break-all">
-                {myPeerId || 'Initializing...'}
-              </code>
-            </div>
-          </div>
-
           {/* Connect Section */}
           <div className="space-y-2">
-             <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Connect to Partner</label>
+             <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Manual Connection</label>
              <div className="flex gap-2">
                <input 
                  type="text"
@@ -113,11 +177,28 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose, myPe
                <button 
                  onClick={handleConnect}
                  disabled={!targetId.trim()}
-                 className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                 className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                >
                  Link
                </button>
              </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Your Device ID</label>
+                {myPeerId && (
+                    <button onClick={handleCopyLink} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                        {copied ? <Check className="w-3 h-3" /> : <Link className="w-3 h-3" />}
+                        {copied ? 'Copied' : 'Copy'}
+                    </button>
+                )}
+            </div>
+            <div className="flex gap-2">
+              <code className="flex-1 bg-black/30 p-2 rounded border border-slate-700 text-indigo-300 font-mono text-xs break-all">
+                {myPeerId || 'Initializing...'}
+              </code>
+            </div>
           </div>
 
           {/* Connected Peers List */}
